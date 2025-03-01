@@ -36,19 +36,34 @@ def render_analysis_tab():
     if user_question:
         qa_chain = create_qa_chain(current_doc_data['vectorstore'])
         with st.spinner("Analyzing with Gemini 1.5 Flash..."):
-            response = qa_chain.run(user_question)
+            # Using invoke() and handling the response properly
+            response_obj = qa_chain.invoke(user_question)
+            
+            # Extract the text response from the dictionary returned by invoke()
+            if isinstance(response_obj, dict):
+                if 'result' in response_obj:
+                    response_text = response_obj['result']
+                else:
+                    # Try common keys or convert the whole response to string
+                    response_text = response_obj.get('answer', 
+                                  response_obj.get('output_text',
+                                  response_obj.get('output',
+                                  str(response_obj))))
+            else:
+                response_text = str(response_obj)
+            
             st.write("### Answer")
-            st.write(response)
+            st.write(response_text)
             
             # Extract and display confidence scores if present
-            confidence_scores = re.findall(r"confidence score[:\s]*(\d+)", response, re.IGNORECASE)
+            confidence_scores = re.findall(r"confidence score[:\s]*(\d+)", response_text, re.IGNORECASE)
             if confidence_scores:
                 avg_confidence = sum(int(score) for score in confidence_scores) / len(confidence_scores)
                 st.write("### Overall Confidence")
                 display_confidence(avg_confidence)
             
             # Add source verification
-            mentioned_pages = re.findall(r"Page (\d+)", response)
+            mentioned_pages = re.findall(r"Page (\d+)", response_text)
             if mentioned_pages:
                 display_source_page(current_doc_data['path'], mentioned_pages)
     
@@ -71,7 +86,21 @@ def render_analysis_tab():
         # Generate insights
         with st.spinner("Generating intelligent financial insights..."):
             qa_chain = create_qa_chain(current_doc_data['vectorstore'])
-            insights = generate_financial_insights(qa_chain, extracted_data)
+            
+            # Updated to use invoke() and handle the response properly
+            insights_obj = generate_financial_insights(qa_chain, extracted_data)
+            
+            # Extract the text response
+            if isinstance(insights_obj, dict):
+                if 'result' in insights_obj:
+                    insights_text = insights_obj['result']
+                else:
+                    insights_text = insights_obj.get('answer',
+                                   insights_obj.get('output_text',
+                                   insights_obj.get('output',
+                                   str(insights_obj))))
+            else:
+                insights_text = str(insights_obj)
             
             st.subheader("Key Financial Insights")
-            st.markdown(insights)
+            st.markdown(insights_text)

@@ -1,6 +1,19 @@
 import re
 from config import STANDARD_METRICS
 
+def extract_text_from_response(response_obj):
+    """Helper function to extract text from response object"""
+    if isinstance(response_obj, dict):
+        if 'result' in response_obj:
+            return response_obj['result']
+        else:
+            return response_obj.get('answer',
+                       response_obj.get('output_text',
+                       response_obj.get('output',
+                       str(response_obj))))
+    else:
+        return str(response_obj)
+
 def extract_standardized_financials(qa_chain, doc_type):
     """Extract standardized financial data based on document type"""
     # Get the list of metrics to extract based on document type
@@ -23,13 +36,15 @@ def extract_standardized_financials(qa_chain, doc_type):
         Confidence: [1-5]
         """
         
-        response = qa_chain.run(prompt)
+        # Updated to use invoke() and handle the response properly
+        response_obj = qa_chain.invoke(prompt)
+        response_text = extract_text_from_response(response_obj)
         
         # Parse the response to extract the value
-        value_match = re.search(r'Value:\s*(.*)', response)
-        page_match = re.search(r'Page:\s*(.*)', response)
-        period_match = re.search(r'Period:\s*(.*)', response)
-        confidence_match = re.search(r'Confidence:\s*(.*)', response)
+        value_match = re.search(r'Value:\s*(.*)', response_text)
+        page_match = re.search(r'Page:\s*(.*)', response_text)
+        period_match = re.search(r'Period:\s*(.*)', response_text)
+        confidence_match = re.search(r'Confidence:\s*(.*)', response_text)
         
         extracted_data[metric] = {
             'value': value_match.group(1).strip() if value_match else "Not found",
@@ -65,12 +80,14 @@ def compare_documents(documents, metric_name):
         Confidence: [1-5]
         """
         
-        response = qa_chain.run(prompt)
+        # Updated to use invoke() and handle the response properly
+        response_obj = qa_chain.invoke(prompt)
+        response_text = extract_text_from_response(response_obj)
         
         # Parse the response
-        value_match = re.search(r'Value:\s*(.*)', response)
-        year_match = re.search(r'Year:\s*(.*)', response)
-        confidence_match = re.search(r'Confidence:\s*(.*)', response)
+        value_match = re.search(r'Value:\s*(.*)', response_text)
+        year_match = re.search(r'Year:\s*(.*)', response_text)
+        confidence_match = re.search(r'Confidence:\s*(.*)', response_text)
         
         comparison_results[doc_name] = {
             'value': value_match.group(1).strip() if value_match else "Not found",
@@ -98,8 +115,9 @@ def extract_table_data(qa_chain, table_type):
     Also include the page reference where this table was found.
     """
     
-    response = qa_chain.run(prompt)
-    return response
+    # Updated to use invoke() and handle the response properly
+    response_obj = qa_chain.invoke(prompt)
+    return extract_text_from_response(response_obj)
 
 def extract_numeric_value(value_str):
     """Extract and normalize numeric values from text"""

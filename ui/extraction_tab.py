@@ -6,6 +6,19 @@ from modules.data_extraction import extract_standardized_financials, extract_tab
 from ui.components import display_confidence, display_source_page
 from config import EXTRACTION_TEMPLATES
 
+def extract_text_from_response(response_obj):
+    """Helper function to extract text from response object"""
+    if isinstance(response_obj, dict):
+        if 'result' in response_obj:
+            return response_obj['result']
+        else:
+            return response_obj.get('answer',
+                       response_obj.get('output_text',
+                       response_obj.get('output',
+                       str(response_obj))))
+    else:
+        return str(response_obj)
+
 def render_extraction_tab():
     """Render the data extraction tab"""
     st.header("Data Extraction")
@@ -53,13 +66,15 @@ def render_extraction_tab():
             if selected_template:
                 extraction_prompt = template_query
             
-            response = qa_chain.run(extraction_prompt)
+            # Updated to use invoke() and handle the response properly
+            response_obj = qa_chain.invoke(extraction_prompt)
+            response_text = extract_text_from_response(response_obj)
             
             st.write("### Extracted Data")
-            st.write(response)
+            st.write(response_text)
             
             # Add source verification
-            mentioned_pages = re.findall(r"Page (\d+)", response)
+            mentioned_pages = re.findall(r"Page (\d+)", response_text)
             if mentioned_pages:
                 display_source_page(current_doc_data['path'], mentioned_pages)
     
@@ -114,7 +129,9 @@ def render_extraction_tab():
     if st.button("Extract Table"):
         with st.spinner(f"Extracting {table_type}..."):
             qa_chain = create_qa_chain(current_doc_data['vectorstore'])
-            table_data = extract_table_data(qa_chain, table_type)
+            # Updated to use invoke() and handle the response
+            table_data_obj = extract_table_data(qa_chain, table_type)
+            table_data = extract_text_from_response(table_data_obj)
             
             st.write(f"### Extracted {table_type}")
             st.write(table_data)
