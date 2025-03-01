@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import re
-from modules.data_extraction import compare_documents, extract_numeric_value
+from modules.data_extraction import compare_documents, extract_numeric_value, extract_text_from_response
 from modules.prediction import predict_future_performance
 from modules.visualization import plot_metric_comparison, plot_financial_projection
 
@@ -108,7 +108,7 @@ def render_financial_projections():
                 # Run prediction
                 prediction_result = predict_future_performance(extracted_data, prediction_metric, projection_years)
                 
-                if prediction_result:
+                if prediction_result and all(x is not None for x in prediction_result):
                     all_years, all_values, predictions, r_squared = prediction_result
                     
                     # Display results
@@ -116,37 +116,42 @@ def render_financial_projections():
                     
                     # Format prediction results
                     prediction_rows = []
-                    for year, value in predictions.items():
-                        prediction_rows.append({
-                            'Year': year,
-                            'Projected Value': f"${value:,.2f}",
-                            'Confidence': "Model R² = {:.2f}".format(r_squared)
-                        })
                     
-                    prediction_df = pd.DataFrame(prediction_rows)
-                    st.dataframe(prediction_df)
-                    
-                    # Create visualization
-                    st.write("### Projection Visualization")
-                    plot_financial_projection(prediction_result)
-                    
-                    # Show model quality
-                    if r_squared < 0.7:
-                        st.warning(f"Caution: The prediction model has low confidence (R² = {r_squared:.2f}). Results may not be reliable.")
-                    elif r_squared > 0.9:
-                        st.success(f"High confidence prediction model (R² = {r_squared:.2f})")
+                    # Check if predictions is not None
+                    if predictions is not None:
+                        for year, value in predictions.items():
+                            prediction_rows.append({
+                                'Year': year,
+                                'Projected Value': f"${value:,.2f}",
+                                'Confidence': f"Model R² = {r_squared:.2f}"
+                            })
+                        
+                        prediction_df = pd.DataFrame(prediction_rows)
+                        st.dataframe(prediction_df)
+                        
+                        # Create visualization
+                        st.write("### Projection Visualization")
+                        plot_financial_projection(prediction_result)
+                        
+                        # Show model quality
+                        if r_squared < 0.7:
+                            st.warning(f"Caution: The prediction model has low confidence (R² = {r_squared:.2f}). Results may not be reliable.")
+                        elif r_squared > 0.9:
+                            st.success(f"High confidence prediction model (R² = {r_squared:.2f})")
+                        else:
+                            st.info(f"Moderate confidence prediction model (R² = {r_squared:.2f})")
+                        
+                        # Add prediction explanation
+                        st.markdown("""
+                        **Prediction Methodology:**
+                        - Linear trend projection based on historical data
+                        - Shaded area represents prediction uncertainty
+                        - R² value indicates how well the model fits historical data (higher is better)
+                        
+                        **Note:** These projections are simplified and should be used as a starting point for further analysis, not as definitive forecasts.
+                        """)
                     else:
-                        st.info(f"Moderate confidence prediction model (R² = {r_squared:.2f})")
-                    
-                    # Add prediction explanation
-                    st.markdown("""
-                    **Prediction Methodology:**
-                    - Linear trend projection based on historical data
-                    - Shaded area represents prediction uncertainty
-                    - R² value indicates how well the model fits historical data (higher is better)
-                    
-                    **Note:** These projections are simplified and should be used as a starting point for further analysis, not as definitive forecasts.
-                    """)
+                        st.warning("Could not generate predictions from the available data.")
                 else:
                     st.warning("Insufficient historical data for projection. Need at least 2 data points.")
     else:

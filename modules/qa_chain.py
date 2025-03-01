@@ -3,6 +3,20 @@ from langchain.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from modules.embeddings import get_retriever
 from config import LLM_MODEL, LLM_TEMPERATURE, RETRIEVER_K, RETRIEVER_SCORE_THRESHOLD
+import json
+
+def extract_text_from_response(response_obj):
+    """Helper function to extract text from response object"""
+    if isinstance(response_obj, dict):
+        if 'result' in response_obj:
+            return response_obj['result']
+        else:
+            return response_obj.get('answer',
+                       response_obj.get('output_text',
+                       response_obj.get('output',
+                       str(response_obj))))
+    else:
+        return str(response_obj)
 
 def create_qa_chain(vectorstore):
     """Create the QA chain with LLM model"""
@@ -68,7 +82,9 @@ def verify_financial_data(qa_chain, data_point, expected_value=None):
     
     This is for critical verification, so precision is essential.
     """
-    return qa_chain.run(verification_prompt)
+    # Use invoke() and extract text from response
+    response_obj = qa_chain.invoke(verification_prompt)
+    return extract_text_from_response(response_obj)
 
 def cross_check_data(qa_chain, data_point):
     """Ask the same question with slight variations for verification"""
@@ -80,14 +96,14 @@ def cross_check_data(qa_chain, data_point):
     ]
     
     for query in variations:
-        results.append(qa_chain.run(query))
+        # Use invoke() and extract text from response
+        response_obj = qa_chain.invoke(query)
+        results.append(extract_text_from_response(response_obj))
     
     return results
 
 def generate_financial_insights(qa_chain, extracted_data):
     """Generate intelligent financial insights based on the data"""
-    import json
-    
     # Create a summary of the extracted data
     data_summary = json.dumps(extracted_data, indent=2)
     
@@ -112,5 +128,6 @@ def generate_financial_insights(qa_chain, extracted_data):
     Confidence: [score]/5
     """
     
-    insights = qa_chain.run(insights_prompt)
-    return insights
+    # Use invoke() and return the result
+    response_obj = qa_chain.invoke(insights_prompt)
+    return response_obj
